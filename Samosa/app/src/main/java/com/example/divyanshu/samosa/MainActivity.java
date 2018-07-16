@@ -1,6 +1,7 @@
 package com.example.divyanshu.samosa;
 
 import android.Manifest;
+
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
@@ -29,8 +30,12 @@ import java.io.IOException;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
+
 import org.tensorflow.lite.Interpreter;
+
 
 public class MainActivity extends AppCompatActivity {
     int REQUEST_IMAGE_CAPTURE = 1;
@@ -44,10 +49,9 @@ public class MainActivity extends AppCompatActivity {
     Bitmap bitmap = null;
     Bitmap bm = null;
     Interpreter tflite;
-    String MODEL_FILE = "new_model_with_softmax.tflite";
+    String MODEL_FILE = "model_new.tflite";
     int pich = 256;
     int picw = 256;
-
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -69,7 +73,7 @@ public class MainActivity extends AppCompatActivity {
                 dispatchTakePictureIntent();
             }
         });
-        imageView = (ImageView) findViewById(R.id.imageView);
+    //    imageView = (ImageView) findViewById(R.id.imageView);
         TextView tv1 = (TextView)findViewById(R.id.tv1);
         TextView tv2 = (TextView)findViewById(R.id.tv2);
         result = (TextView)findViewById(R.id.result);
@@ -119,12 +123,14 @@ public class MainActivity extends AppCompatActivity {
         int[] pix = new int[picw * pich];
         if (requestCode == 100) {
             if (resultCode == RESULT_OK) {
-                imageView.setImageURI(file);
+                //imageView.setImageURI(file);
                 try {
                     int pich = 256;
                     int picw = 256;
                     bitmap = MediaStore.Images.Media.getBitmap(this.getContentResolver(), file);
                     tv1 = (TextView)findViewById(R.id.tv1);
+                    ImageView im = (ImageView)findViewById(R.id.imview);
+                    im.setImageBitmap(bitmap);
                     if(bitmap != null)
                     {
                         tv1.setText("Not Null");
@@ -141,19 +147,36 @@ public class MainActivity extends AppCompatActivity {
 
                     tv2.setText("NotNull");
                 }
+      /*          Utils.bitmapToMat(bmp32, mat);
+                Mat dst = new Mat();
+                ArrayList<Mat> m = new ArrayList<Mat>();
+                Core.split(mat, m);
+                ArrayList<Mat> mx = new ArrayList<Mat>();
+                mx.add(m.get(1));
+                mx.add(m.get(2));
+                mx.add(m.get(3));
+                Core.merge(mx, dst);
+                Mat dst1 = new Mat();
+                Imgproc.cvtColor(dst, dst1, Imgproc.COLOR_RGB2BGR );
+                if(dst1 == null)
+                {
+                    Log.e("cvtColor", "onActivityResult: Not Converted");
+                }
+//                ArrayList <Mat> matlist = new ArrayList<Mat>();
+//                Core.split(mat, matlist);
+//                ArrayList <Mat> matRGB = new ArrayList <Mat>();
+//                Mat rgb =  new Mat(mat.size(), mat.type());
+//                matRGB.add(matlist.get(1));
+//                matRGB.add(matlist.get(2));
+//                matRGB.add(matlist.get(3));
+//                Core.merge(matRGB, rgb);
 
-                int R = 0, G = 0, B = 0;
+*/               int R = 0, G = 0, B = 0;
 
                 int[][] Red = new int[256][256];
                 int[][] Green = new int[256][256];
                 int[][] Blue = new int[256][256];
-                for (int q = 0; q < pich; q++) {
-                    for (int x = 0; x < picw; x++) {
-                        Red[q][x] = 0;
-                        Green[q][x] = 0;
-                        Blue[q][x] = 0;
-                    }
-                }
+
                 float [][][][] image = new float[1][256][256][3];
                 for (int y = 0; y < pich; y++) {
                     for (int x = 0; x < picw; x++) {
@@ -171,7 +194,7 @@ public class MainActivity extends AppCompatActivity {
                 {
                     for(int y = 0; x < 256; x++)
                     {
-                        image[0][x][y][0] = Red[x][y];
+                        image[0][x][y][2] = Red[x][y];
                     }
                 }
                 //For Green
@@ -187,33 +210,46 @@ public class MainActivity extends AppCompatActivity {
                 {
                     for(int y = 0; x < 256; x++)
                     {
-                        image[0][x][y][2] = Blue[x][y];
+                        image[0][x][y][0] = Blue[x][y];
                     }
                 }
-                float [][][][] inp = image;
+                for(int x = 0; x < 256; x++)
+                {
+                    for(int y = 0; x < 256; x++)
+                    {
+                        for(int z = 0; z < 3; z++)
+                        {
+                            image[0][x][y][z] = (image[0][x][y][z]/255);
+                        }
+
+                    }
+                }
+                float[][][][] inp = image;
                 float[][] out = new float[1][2];
+                for(int x = 0; x < 256; x++)
+                {
+                    for(int y = 0; x < 256; x++) {
+                        for (int z = 0; z < 3; z++) {
+                         String s =   Float.toString(image[0][x][y][z]);
+                                tv1.append(s);
+                                tv1.append("  ");
+                            }
+                        }
+                    }
+
                 tflite.run(inp,out);
-                Boolean sam = false;
                 double prob1 = out[0][0];
                 double prob2 = out[0][1];
-                if(prob1< 0 && prob1 > -250)
-                {
-                    sam = true;
-                }
-                if(prob1>0)
-                {
-                    sam = true;
-                }
                 //double prob1 =  (Math.pow(2.718, out[0][0])/(Math.pow(2.718, out[0][0])+ Math.pow(2.718, out[0][1])));
 
                 //double prob2 =  (Math.pow(2.718, out[0][1])/(Math.pow(2.718, out[0][0])+ Math.pow(2.718, out[0][1])));
                 String p1 = Double.toString(prob1);
                 String p2 = Double.toString(prob2);
 
-                tv1.setText(p1);
+                //tv1.setText(p1);
                 tv2.setText(p2);
 
-                if(prob1 > prob2 && sam == true )
+                if(prob1 > prob2)
                 {
                     result.setText("This is a samosa!");
                 }
@@ -221,7 +257,6 @@ public class MainActivity extends AppCompatActivity {
                 {
                     result.setText("This is not a Samosa");
                 }
-
             }
         }
     }
