@@ -3,13 +3,9 @@ package com.example.divyanshu.samosa;
 import android.Manifest;
 
 import android.app.Activity;
-import android.content.Context;
 import android.content.Intent;
 import android.content.res.AssetFileDescriptor;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-import android.graphics.Color;
-import android.media.Image;
 import android.net.Uri;
 import android.os.Environment;
 import android.provider.MediaStore;
@@ -17,7 +13,6 @@ import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.FileProvider;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
@@ -25,14 +20,11 @@ import android.widget.TextView;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Date;
-import java.util.List;
 
 import org.tensorflow.lite.Interpreter;
 
@@ -40,16 +32,15 @@ import org.tensorflow.lite.Interpreter;
 public class MainActivity extends AppCompatActivity {
     int REQUEST_IMAGE_CAPTURE = 1;
     int WRITE_EXTERNAL_STORAGE = 2;
-    String mCurrentPhotoPath;
-    TextView tv1;
-    TextView tv2;
     TextView result;
-    public ImageView imageView;
     Uri file;
     Bitmap bitmap = null;
     Bitmap bm = null;
-    Interpreter tflite;
-    String MODEL_FILE = "model_new.tflite";
+    Interpreter tflite1, tflite2, tflite3;
+    String MODEL_FILE1 = "inp_CL4.tflite";
+    String MODEL_FILE2 = "UPSMPL_CL5.tflite";
+    String MODEL_FILE3 = "UPSMPL2_CL6.tflite";
+
     int pich = 256;
     int picw = 256;
 
@@ -73,16 +64,22 @@ public class MainActivity extends AppCompatActivity {
                 dispatchTakePictureIntent();
             }
         });
-    //    imageView = (ImageView) findViewById(R.id.imageView);
-        TextView tv1 = (TextView)findViewById(R.id.tv1);
-        TextView tv2 = (TextView)findViewById(R.id.tv2);
-        result = (TextView)findViewById(R.id.result);
 
         //Load the Tensorflow Interpreter
 
         {
             try {
-                tflite = new Interpreter(loadModelFile(MainActivity.this,MODEL_FILE));
+                tflite1 = new Interpreter(loadModelFile(MainActivity.this,MODEL_FILE1));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            try {
+                tflite2 = new Interpreter(loadModelFile(MainActivity.this,MODEL_FILE2));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            try {
+                tflite3 = new Interpreter(loadModelFile(MainActivity.this,MODEL_FILE3));
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -123,55 +120,18 @@ public class MainActivity extends AppCompatActivity {
         int[] pix = new int[picw * pich];
         if (requestCode == 100) {
             if (resultCode == RESULT_OK) {
-                //imageView.setImageURI(file);
                 try {
-                    int pich = 256;
-                    int picw = 256;
                     bitmap = MediaStore.Images.Media.getBitmap(this.getContentResolver(), file);
-                    tv1 = (TextView)findViewById(R.id.tv1);
                     ImageView im = (ImageView)findViewById(R.id.imview);
+                    result = (TextView)findViewById(R.id.result);
                     im.setImageBitmap(bitmap);
-                    if(bitmap != null)
-                    {
-                        tv1.setText("Not Null");
-                    }
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
 
-                tv2 = (TextView)findViewById(R.id.tv2);
                 bm = Bitmap.createScaledBitmap(bitmap, 256, 256, false);
                 bm.getPixels(pix, 0, picw, 0, 0, picw, pich);
-                if(bm != null)
-                {
-
-                    tv2.setText("NotNull");
-                }
-      /*          Utils.bitmapToMat(bmp32, mat);
-                Mat dst = new Mat();
-                ArrayList<Mat> m = new ArrayList<Mat>();
-                Core.split(mat, m);
-                ArrayList<Mat> mx = new ArrayList<Mat>();
-                mx.add(m.get(1));
-                mx.add(m.get(2));
-                mx.add(m.get(3));
-                Core.merge(mx, dst);
-                Mat dst1 = new Mat();
-                Imgproc.cvtColor(dst, dst1, Imgproc.COLOR_RGB2BGR );
-                if(dst1 == null)
-                {
-                    Log.e("cvtColor", "onActivityResult: Not Converted");
-                }
-//                ArrayList <Mat> matlist = new ArrayList<Mat>();
-//                Core.split(mat, matlist);
-//                ArrayList <Mat> matRGB = new ArrayList <Mat>();
-//                Mat rgb =  new Mat(mat.size(), mat.type());
-//                matRGB.add(matlist.get(1));
-//                matRGB.add(matlist.get(2));
-//                matRGB.add(matlist.get(3));
-//                Core.merge(matRGB, rgb);
-
-*/               int R = 0, G = 0, B = 0;
+             int R = 0, G = 0, B = 0;
 
                 int[][] Red = new int[256][256];
                 int[][] Green = new int[256][256];
@@ -225,43 +185,146 @@ public class MainActivity extends AppCompatActivity {
                     }
                 }
                 float[][][][] inp = image;
-                float[][] out = new float[1][2];
-                for(int x = 0; x < 256; x++)
+                float[][][][] out = new float[1][32][32][64];
+
+                tflite1.run(inp,out);
+                float[][][][] cl5_inp = new float[1][64][64][64];
+                for(int i = 0; i < 32; i++)
                 {
-                    for(int y = 0; x < 256; x++) {
-                        for (int z = 0; z < 3; z++) {
-                         String s =   Float.toString(image[0][x][y][z]);
-                                tv1.append(s);
-                                tv1.append("  ");
-                            }
+                    for(int j = 0; j < 32; j ++)
+                    {
+                        for(int k = 0; k < 64; k++)
+                        {
+                            cl5_inp[0][2*i][2*j][k] = out[0][i][j][k];
+                            cl5_inp[0][2*i + 1][2*j + 1][k] = out[0][i][j][k];
+                            cl5_inp[0][2*i][2*j + 1][k] = out[0][i][j][k];
+                            cl5_inp[0][2*i + 1][2*j][k] = out[0][i][j][k];
                         }
                     }
+                }
+                float[][][][] cl5_op = new float[1][32][32][32];
+                tflite2.run(cl5_inp, cl5_op);
+                float[][][][] temp1 = new float[1][64][64][32];
+                float[][][][] temp2 = new float[1][128][128][32];
+                float[][][][] cl6_inp = new float[1][256][256][32];
+                float[][][][] cl6_op = new float[1][256][256][3];
 
-                tflite.run(inp,out);
-                double prob1 = out[0][0];
-                double prob2 = out[0][1];
-                //double prob1 =  (Math.pow(2.718, out[0][0])/(Math.pow(2.718, out[0][0])+ Math.pow(2.718, out[0][1])));
 
-                //double prob2 =  (Math.pow(2.718, out[0][1])/(Math.pow(2.718, out[0][0])+ Math.pow(2.718, out[0][1])));
-                String p1 = Double.toString(prob1);
-                String p2 = Double.toString(prob2);
 
-                //tv1.setText(p1);
-                tv2.setText(p2);
-
-                if(prob1 > prob2)
+                for(int i = 0; i < 32; i++)
                 {
-                    result.setText("This is a samosa!");
+                    for(int j = 0; j < 32; j ++)
+                    {
+                        for(int k = 0; k < 32; k++)
+                        {
+                            temp1[0][2*i][2*j][k] = cl5_op[0][i][j][k];
+                            temp1[0][2*i + 1][2*j + 1][k] = cl5_op[0][i][j][k];
+                            temp1[0][2*i][2*j + 1][k] = cl5_op[0][i][j][k];
+                            temp1[0][2*i + 1][2*j][k] = cl5_op[0][i][j][k];
+                        }
+                    }
+                }
+                for(int i = 0; i < 64; i++)
+                {
+                    for(int j = 0; j < 64; j ++)
+                    {
+                        for(int k = 0; k < 32; k++)
+                        {
+                            temp2[0][2*i][2*j][k] = temp1[0][i][j][k];
+                            temp2[0][2*i + 1][2*j + 1][k] = temp1[0][i][j][k];
+                            temp2[0][2*i][2*j + 1][k] = temp1[0][i][j][k];
+                            temp2[0][2*i + 1][2*j][k] = temp1[0][i][j][k];
+                        }
+                    }
+                }
+                for(int i = 0; i < 128; i++)
+                {
+                    for(int j = 0; j < 128; j ++)
+                    {
+                        for(int k = 0; k < 32; k++)
+                        {
+                            cl6_inp[0][2*i][2*j][k] = temp2[0][i][j][k];
+                            cl6_inp[0][2*i + 1][2*j + 1][k] = temp2[0][i][j][k];
+                            cl6_inp[0][2*i][2*j + 1][k] = temp2[0][i][j][k];
+                            cl6_inp[0][2*i + 1][2*j][k] = temp2[0][i][j][k];
+                        }
+                    }
+                }
+
+                tflite3.run(cl6_inp, cl6_op);
+                //tf.square(tf.subtract(op,inp))
+
+                for(int i = 0; i < 256; i++)
+                    {
+                        for(int j = 0; j < 256; j++)
+                            {
+                                for(int k = 0; k < 3; k++)
+                                    {
+                                        cl6_op[0][i][j][k] = ((cl6_op[0][i][j][k] - inp[0][i][j][k])*(cl6_op[0][i][j][k] - inp[0][i][j][k]));
+                                    }
+                            }
+                    }
+
+                //tf.reduce_sum
+                //Add columns in 1st column. Delete all columns except 1st
+                for(int i = 0; i < 256; i++)
+                    {
+                        for(int j = 1; j < 256; j++)
+                            {
+                                for(int k = 0; k < 3; k++)
+                                    {
+                                        cl6_op[0][i][0][k] += cl6_op[0][i][j][k];
+                                    }
+                            }
+                    }
+
+                float[][][] l2 = new float[1][256][3];
+                for(int i = 0; i < 256; i++) {
+                    for (int k = 0; k < 3; k++) {
+                        l2[0][i][k] = (float)Math.sqrt(cl6_op[0][i][0][k]);
+
+                    }
+                }
+                float[] l2_n = new float[3];
+                for(int i = 0; i < 256; i++)
+                {
+
+                        l2[0][0][0] += l2[0][i][0];
+
+                }
+                l2_n[0] = (l2[0][0][0]/256);
+                for(int i = 0; i < 256; i++)
+                {
+
+                    l2[0][0][1] += l2[0][i][1];
+
+                }
+                l2_n[1] = (l2[0][0][1]/256);
+                for(int i = 0; i < 256; i++)
+                {
+
+                    l2[0][0][2] += l2[0][i][2];
+
+                }
+                l2_n[2] = (l2[0][0][2]/255);
+                float loss = ((l2_n[0] + l2_n[1] + l2_n[2])/3);
+                if(loss < 0.123)
+                {
+                    result.setBackgroundColor(0xff7db700);
+                    result.setText("It is a Samosa");
                 }
                 else
                 {
-                    result.setText("This is not a Samosa");
+                    result.setBackgroundColor(0xfff00000);
+                    result.setText("I don't think it is a Samosa...");
                 }
+
             }
+
         }
     }
-    private MappedByteBuffer loadModelFile(Activity activity, String MODEL_FILE) throws IOException {
-        AssetFileDescriptor fileDescriptor = activity.getAssets().openFd(MODEL_FILE);
+    private MappedByteBuffer loadModelFile(Activity activity, String MODEL_FILE1) throws IOException {
+        AssetFileDescriptor fileDescriptor = activity.getAssets().openFd(MODEL_FILE1);
         FileInputStream inputStream = new FileInputStream(fileDescriptor.getFileDescriptor());
         FileChannel fileChannel = inputStream.getChannel();
         long startOffset = fileDescriptor.getStartOffset();

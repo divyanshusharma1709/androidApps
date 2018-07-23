@@ -8,31 +8,25 @@
 
     <Button
         android:id="@+id/launch"
+        android:layout_margin="8sp"
+        android:text="Capture Image"
+        android:textColor="@android:color/black"
         android:layout_centerHorizontal="true"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"/>
- <ScrollView
-     android:layout_width="wrap_content"
-     android:layout_height="wrap_content"
-     android:layout_below="@id/imview">
+
     <TextView
-        android:id="@+id/tv1"
+        android:id="@+id/result"
+        android:layout_margin="24sp"
+        android:textSize="32sp"
+        android:textColor="@android:color/white"
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content" />
- </ScrollView>
+        android:layout_below="@id/imview"
+        android:layout_height="wrap_content"
+        android:layout_centerHorizontal = "true"/>
     <ImageView
         android:id="@+id/imview"
         android:layout_below="@id/launch"
         android:layout_width="wrap_content"
-        android:layout_height="256dp" />
-    <TextView
-        android:id="@+id/tv2"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_above="@id/result"/>
-    <TextView
-        android:id="@+id/result"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignParentBottom="true"/>
+        android:layout_height="256sp" />
 </RelativeLayout>
